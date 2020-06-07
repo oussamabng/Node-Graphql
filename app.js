@@ -1,13 +1,14 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const Event = require("./models/event");
+
 const graphqlHttp = require("express-graphql");
 const { buildSchema } = require("graphql");
 
 const app = express();
 
 app.use(bodyParser.json());
-
-const events = [];
 
 app.use(
   "/api",
@@ -39,25 +40,50 @@ app.use(
         `),
     rootValue: {
       events: () => {
-        return events;
+        return Event.find()
+          .then((events) => {
+            return events.map((event) => {
+              return { ...event._doc, _id: event._id.toString() };
+            });
+          })
+          .catch((err) => {
+            throw err;
+          });
       },
       createEvent: (args) => {
-        const { title, description, date, price } = args.eventInput;
-        const event = {
-          _id: Math.random().toString(),
+        const { title, description, price } = args.eventInput;
+        const event = new Event({
           title,
           description,
+          date: new Date(args.eventInput.date),
           price,
-          date,
-        };
-        events.push(event);
-        return event;
+        });
+        return event
+          .save()
+          .then((result) => {
+            console.log(result);
+            return { ...result._doc };
+          })
+          .catch((err) => {
+            console.log(err);
+            throw err;
+          });
       },
     },
     graphiql: true,
   })
 );
 
-app.listen(3000, () => {
-  console.log("Server started on port 3000");
-});
+mongoose
+  .connect(
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-acksc.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`,
+    { useNewUrlParser: true, useUnifiedTopology: true }
+  )
+  .then(() => {
+    app.listen(3000, () => {
+      console.log("Server started on port 3000");
+    });
+  })
+  .catch((err) => {
+    console.log(err);
+  });
