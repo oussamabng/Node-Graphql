@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const Event = require("./models/event");
+const User = require("./models/user");
+const bcrypt = require("bcryptjs");
 
 const graphqlHttp = require("express-graphql");
 const { buildSchema } = require("graphql");
@@ -21,6 +23,15 @@ app.use(
           price : Float!
           date : String!
         }
+        type User {
+          _id: ID!
+          email: String!
+          password: String
+        }
+        input userSerialier {
+          email: String!
+          password: String!
+        }
         type RootQuery {
             events : [Event!]!
         }
@@ -32,6 +43,7 @@ app.use(
         }
         type RootMutation {
             createEvent(eventInput : eventSerializer) : Event
+            createUser(userInput: userSerialier) : User  
         }
         schema {
             query: RootQuery
@@ -61,13 +73,25 @@ app.use(
         return event
           .save()
           .then((result) => {
-            console.log(result);
-            return { ...result._doc, _id: result.id };
+            return { ...result._doc, password: null, _id: result.id };
           })
           .catch((err) => {
-            console.log(err);
             throw err;
           });
+      },
+      createUser: async (args) => {
+        const { email, password } = args.userInput;
+        const user = await User.findOne({ email });
+        if (user) {
+          throw new Error("User Already exist");
+        }
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const newUser = new User({
+          email,
+          password: hashedPassword,
+        });
+        await newUser.save();
+        return { ...newUser._doc, password: null, _id: newUser._id.toString() };
       },
     },
     graphiql: true,
@@ -76,7 +100,7 @@ app.use(
 
 mongoose
   .connect(
-    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-acksc.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`,
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-fxzxm.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`,
     { useNewUrlParser: true, useUnifiedTopology: true }
   )
   .then(() => {
