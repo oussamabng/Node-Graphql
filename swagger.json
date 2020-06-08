@@ -1,0 +1,67 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Swagger api",
+    "description": "my frist swagger api doc",
+    "license": {
+      "name": "MIT",
+      "url": "http/localhost/api/swagger"
+    }
+  },
+  "definitions": {
+    "Event": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        }
+      }
+    },
+    "Events": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Event"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/user": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Get test",
+        "responses": {
+          "200": {
+            "description": "ok",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        }
+      }
+    }
+  },
+  "host": "localhost:3000",
+  "tags": [
+    {
+      "name": "Api event",
+      "description": "simple api"
+    }
+  ],
+  "schemes": ["http"],
+  "consumes": "application/json",
+  "produces": "application/json"
+}

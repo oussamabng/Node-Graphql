@@ -1,102 +1,55 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-const Event = require("./models/event");
-const User = require("./models/user");
-const bcrypt = require("bcryptjs");
 
+const graphQlSchema = require("./graphql/schema/index");
+const graphQlResolvers = require("./graphql/resolvers/index");
 const graphqlHttp = require("express-graphql");
-const { buildSchema } = require("graphql");
 
 const app = express();
+
+const swaggerJSDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./swagger.json");
+
+const swaggerOptions = {
+  swaggerDefinition: {
+    info: {
+      info: {
+        title: "Swagger api",
+        version: "1.0.0",
+        description: "simple api build with node js and graphql",
+        contact: {
+          name: "bengoudifa oussama",
+        },
+      },
+      servers: ["http://localhost:3000"],
+    },
+  },
+  apis: ["app.js"],
+};
+
+const swaggerDocs = swaggerJSDoc(swaggerOptions);
+app.use(
+  "/api/swagger",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, swaggerDocs)
+);
 
 app.use(bodyParser.json());
 
 app.use(
   "/api",
   graphqlHttp({
-    schema: buildSchema(`
-        type Event {
-          _id : ID!
-          title : String!
-          description : String!
-          price : Float!
-          date : String!
-        }
-        type User {
-          _id: ID!
-          email: String!
-          password: String
-        }
-        input userSerialier {
-          email: String!
-          password: String!
-        }
-        type RootQuery {
-            events : [Event!]!
-        }
-        input eventSerializer {
-          title : String!
-          description : String!
-          price : Float!
-          date : String!
-        }
-        type RootMutation {
-            createEvent(eventInput : eventSerializer) : Event
-            createUser(userInput: userSerialier) : User  
-        }
-        schema {
-            query: RootQuery
-            mutation: RootMutation
-        }
-        `),
-    rootValue: {
-      events: () => {
-        return Event.find()
-          .then((events) => {
-            return events.map((event) => {
-              return { ...event._doc, _id: event.id };
-            });
-          })
-          .catch((err) => {
-            throw err;
-          });
-      },
-      createEvent: (args) => {
-        const { title, description, price } = args.eventInput;
-        const event = new Event({
-          title,
-          description,
-          date: new Date(args.eventInput.date),
-          price,
-        });
-        return event
-          .save()
-          .then((result) => {
-            return { ...result._doc, password: null, _id: result.id };
-          })
-          .catch((err) => {
-            throw err;
-          });
-      },
-      createUser: async (args) => {
-        const { email, password } = args.userInput;
-        const user = await User.findOne({ email });
-        if (user) {
-          throw new Error("User Already exist");
-        }
-        const hashedPassword = await bcrypt.hash(password, 12);
-        const newUser = new User({
-          email,
-          password: hashedPassword,
-        });
-        await newUser.save();
-        return { ...newUser._doc, password: null, _id: newUser._id.toString() };
-      },
-    },
+    schema: graphQlSchema,
+    rootValue: graphQlResolvers,
     graphiql: true,
   })
 );
+
+app.get("/", (req, res) => {
+  res.send("response");
+});
 
 mongoose
   .connect(
